@@ -401,7 +401,7 @@
       <h1>AI Assistant</h1>
       <div class="status">
         <span class="status-dot"></span>
-        <span>Antigravity Tools &mdash; localhost:8045</span>
+        <span>Antigravity Tools &mdash; Cloudflared Tunnel (Online)</span>
       </div>
     </div>
 
@@ -470,7 +470,7 @@
       </button>
     </div>
     <div id="status-bar">
-      <span class="footer-hint">Antigravity Tools &mdash; http://127.0.0.1:8045</span>
+      <span class="footer-hint">Antigravity Tools &mdash; Cloudflared Public URL</span>
       <span id="conn-status">Menghubungkan...</span>
     </div>
   </div>
@@ -482,7 +482,7 @@
      KONFIGURASI
   ═══════════════════════════════════════════ */
   const CONFIG = {
-    baseUrl: 'https://villa-launched-vehicles-gold.trycloudflare.com/v1',
+    baseUrl: 'https://airline-nuclear-stud-track.trycloudflare.com',
     apiKey:  'sk-1de606aad7c241bdac511958f7853b6e',
     maxHistory: 8,
     system:  `Kamu AI serba bisa. Jawab informatif, padat, dan natural. Bahas apa saja menyesuaikan gaya/bahasa pengguna.\nPENTING: Jawab teks biasa TANPA markdown (*, #, dsb) atau emoji.`
@@ -864,12 +864,14 @@
     } catch (err) {
       removeTyping();
       console.error('[Antigravity] Fetch error:', err);
-      const catchErrorMsg = 'Gagal terhubung ke Antigravity Tools. Pastikan server (antigravity start) sudah berjalan di port 8045.';
-      alert(catchErrorMsg);
-      addMessage('assistant',
-        'Gagal terhubung ke Antigravity Tools.\n\nPastikan:\n1. Server sudah berjalan (antigravity start)\n2. Port 8045 aktif\n3. Cek apakah ada firewall yang memblokir localhost',
-        true
-      );
+      const catchErrorMsg = 'Gagal terhubung ke Antigravity Tools. Pastikan server (antigravity start) dan Tunnel Cloudflared sudah berjalan.';
+      if (showUI) {
+        setTyping(false);
+        addMessage('system',
+          'Gagal terhubung ke Antigravity Tools.\n\nPastikan:\n1. Server sudah berjalan (antigravity start)\n2. Cloudflared Tunnel aktif\n3. Cek URL Cloudflared di config sudah benar',
+          'A0'
+        );
+      }
       history.pop();
       connStatus.textContent = 'Tidak terhubung';
       connStatus.className = 'error';
