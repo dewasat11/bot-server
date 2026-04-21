@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Assistant — Antigravity</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary:    #ffffff;
+      --bg-secondary:  #f5f5f4;
+      --bg-tertiary:   #efefed;
+      --text-primary:  #1a1a18;
+      --text-secondary:#6b6b67;
+      --text-tertiary: #a8a8a4;
+      --border-light:  rgba(0,0,0,0.08);
+      --border-medium: rgba(0,0,0,0.14);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-tertiary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #chat-window {
+      width: 100%;
+      max-width: 740px;
+      height: 90vh;
+      max-height: 840px;
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 2px 24px rgba(0,0,0,0.06);
+    }
+
+    /* ── HEADER ── */
+    #header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 15px 20px;
+      border-bottom: 0.5px solid var(--border-light);
+      flex-shrink: 0;
+    }
+
+    .header-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-light);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .header-avatar svg { width: 18px; height: 18px; color: var(--text-secondary); }
+
+    .header-info { flex: 1; }
+    .header-info h1 { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+    .header-info .status {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px; color: var(--text-secondary); margin-top: 1px;
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #3B6D11; flex-shrink: 0; }
+
+    /* Model Selector */
+    #model-select {
+      font-size: 12px;
+      font-family: var(--font);
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+      padding: 5px 8px;
+      cursor: pointer;
+      outline: none;
+    }
+    #model-select:hover { border-color: rgba(0,0,0,0.25); }
+
+    #clear-btn {
+      padding: 5px 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: transparent;
+      border: 0.5px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.15s;
+      font-family: var(--font);
+    }
+    #clear-btn:hover { background: var(--bg-secondary); }
+
+    /* ── MESSAGES ── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 4px; }
+
+    /* ── EMPTY STATE ── */
+    #empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .es-icon {
+      width: 50px; height: 50px;
+      background: var(--bg-secondary);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 4px;
+    }
+    .es-icon svg { width: 24px; height: 24px; color: var(--text-tertiary); }
+    #empty-state h2 { font-size: 16px; font-weight: 500; color: var(--text-primary); }
+    #empty-state p { font-size: 13px; color: var(--text-secondary); max-width: 300px; line-height: 1.6; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 12px; }
+    .chip {
+      font-size: 12px; padding: 6px 12px;
+      border: 0.5px solid var(--border-medium);
+      border-radius: 20px;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: var(--font);
+    }
+    .chip:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+    /* ── MESSAGE ROW ── */
+    .msg-row {
+      display: flex; align-items: flex-end; gap: 8px;
+      animation: fadeUp 0.2s ease;
+    }
+    .msg-row.user { flex-direction: row-reverse; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-light);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .msg-avatar svg { width: 14px; height: 14px; color: var(--text-secondary); }
+
+    .bubble {
+      max-width: 72%;
+      padding: 10px 14px;
+      font-size: 14px;
+      line-height: 1.65;
+      border-radius: var(--radius-lg);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .bubble.bot {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 0.5px solid var(--border-light);
+      border-bottom-left-radius: 4px;
+    }
+    .bubble.user {
+      background: var(--text-primary);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .bubble.error {
+      background: #FCEBEB;
+      border: 0.5px solid rgba(240,149,149,0.5);
+      color: #A32D2D;
+      border-bottom-left-radius: 4px;
+    }
+
+    .bubble-thinking {
+      font-style: italic;
+      font-size: 13px;
+      color: var(--text-secondary);
+      background: rgba(0,0,0,0.03);
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      margin-bottom: 8px;
+      border-left: 2px solid var(--border-medium);
+      line-height: 1.5;
+    }
+
+    .copy-btn {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 8px;
+      padding: 0;
+      font-family: var(--font);
+      transition: color 0.15s;
+    }
+    .copy-btn:hover { color: var(--text-secondary); }
+    .copy-btn svg { width: 12px; height: 12px; }
+
+    /* ── IMAGE IN BUBBLE ── */
+    .bubble-img {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: var(--radius-sm);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    /* ── TYPING ── */
+    .typing { display: flex; gap: 4px; align-items: center; padding: 12px 14px; }
+    .typing span {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--text-tertiary);
+      animation: blink 1.2s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.2; }
+      40%           { opacity: 1; }
+    }
+
+    /* ── INPUT ── */
+    #input-area {
+      padding: 12px 20px 16px;
+      border-top: 0.5px solid var(--border-light);
+      flex-shrink: 0;
+    }
+
+    /* ── FILE PREVIEW ── */
+    #file-preview {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 8px 10px;
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+    }
+    #file-preview.visible { display: flex; }
+    #preview-thumb {
+      width: 48px; height: 48px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+      display: none;
+    }
+    #preview-thumb.visible { display: block; }
+    .preview-file-icon {
+      width: 48px; height: 48px;
+      border-radius: 6px;
+      background: var(--bg-tertiary);
+      display: none;
+      align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .preview-file-icon.visible { display: flex; }
+    .preview-file-icon svg { width: 22px; height: 22px; color: var(--text-secondary); }
+    #preview-name {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #preview-remove {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: var(--border-medium);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+      line-height: 1;
+      transition: background 0.15s;
+    }
+    #preview-remove:hover { background: rgba(163,45,45,0.15); color: #A32D2D; }
+
+    #input-row {
+      display: flex; align-items: flex-end; gap: 10px;
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      padding: 8px 8px 8px 8px;
+      transition: border-color 0.15s;
+    }
+    #input-row:focus-within { border-color: rgba(0,0,0,0.28); }
+
+    /* Upload button */
+    #upload-btn {
+      width: 34px; height: 34px;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: color 0.15s, background 0.15s;
+    }
+    #upload-btn:hover { color: var(--text-secondary); background: var(--bg-tertiary); }
+    #upload-btn svg { width: 18px; height: 18px; }
+
+    #user-input {
+      flex: 1; border: none; background: transparent;
+      font-size: 14px; color: var(--text-primary);
+      font-family: var(--font);
+      resize: none; outline: none;
+      min-height: 22px; max-height: 120px; line-height: 1.55;
+      padding-left: 6px;
+    }
+    #user-input::placeholder { color: var(--text-tertiary); }
+
+    #send-btn {
+      width: 34px; height: 34px;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: var(--text-primary);
+      color: #fff;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    #send-btn:hover:not(:disabled) { opacity: 0.82; }
+    #send-btn:active:not(:disabled) { transform: scale(0.96); }
+    #send-btn:disabled { opacity: 0.3; cursor: default; }
+    #send-btn svg { width: 16px; height: 16px; }
+
+    /* ── CONNECTION STATUS BAR ── */
+    #status-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 8px;
+    }
+    .footer-hint { font-size: 11px; color: var(--text-tertiary); }
+    #conn-status {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: var(--bg-secondary);
+      color: var(--text-tertiary);
+      border: 0.5px solid var(--border-light);
+    }
+    #conn-status.ok    { background: #EAF3DE; color: #3B6D11; border-color: rgba(59,109,17,0.2); }
+    #conn-status.error { background: #FCEBEB; color: #A32D2D; border-color: rgba(163,45,45,0.2); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 500px) {
+      body { padding: 0; }
+      #chat-window { height: 100vh; max-height: 100vh; border-radius: 0; border: none; box-shadow: none; }
+      .bubble { max-width: 85%; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="chat-window">
+
+  <!-- Header -->
+  <div id="header">
+    <div class="header-avatar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+      </svg>
+    </div>
+    <div class="header-info">
+      <h1>AI Assistant</h1>
+      <div class="status">
+        <span class="status-dot"></span>
+        <span>Antigravity Tools &mdash; localhost:8045</span>
+      </div>
+    </div>
+
+    <!-- Model selector -->
+    <select id="model-select">
+      <option value="gemini-3-flash" selected>gemini-3-flash</option>
+      <option value="gemini-3.1-pro-low">gemini-3.1-pro-low</option>
+      <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+      <option value="claude-opus-4-6-thinking">claude-opus-4-6-thinking</option>
+      <option value="gpt-oss-120b-medium">gpt-oss-120b-medium</option>
+    </select>
+
+    <button id="clear-btn" onclick="clearChat()">Clear</button>
+  </div>
+
+  <!-- Messages -->
+  <div id="messages">
+    <div id="empty-state">
+      <div class="es-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+        </svg>
+      </div>
+      <h2>Halo! Ada yang bisa dibantu?</h2>
+      <p>Terhubung ke Antigravity Tools lokal kamu. Pilih model di atas lalu mulai chat.</p>
+      <div class="chips">
+        <button class="chip" onclick="useSuggestion(this)">Jelaskan konsep AI</button>
+        <button class="chip" onclick="useSuggestion(this)">Tulis email formal</button>
+        <button class="chip" onclick="useSuggestion(this)">Buat rencana belajar</button>
+        <button class="chip" onclick="useSuggestion(this)">Bantu debug kode</button>
+        <button class="chip" onclick="useSuggestion(this)">Terjemahkan teks</button>
+        <button class="chip" onclick="useSuggestion(this)">Rangkum artikel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div id="input-area">
+
+    <!-- File preview -->
+    <div id="file-preview">
+      <img id="preview-thumb" src="" alt="preview" />
+      <div class="preview-file-icon" id="preview-file-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+        </svg>
+      </div>
+      <span id="preview-name"></span>
+      <button id="preview-remove" onclick="removePendingFile()" title="Hapus file">&#x2715;</button>
+    </div>
+
+    <div id="input-row">
+      <!-- Hidden file input -->
+      <input type="file" id="file-input" accept="image/*,.pdf,.txt,.csv" hidden />
+      <!-- Upload button -->
+      <button id="upload-btn" onclick="document.getElementById('file-input').click()" title="Upload file atau foto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13"/>
+        </svg>
+      </button>
+      <textarea id="user-input" rows="1" placeholder="Ketik pesan... (Enter kirim, Shift+Enter baris baru)"></textarea>
+      <button id="send-btn" onclick="sendMessage()" title="Kirim">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z"/>
+        </svg>
+      </button>
+    </div>
+    <div id="status-bar">
+      <span class="footer-hint">Antigravity Tools &mdash; http://127.0.0.1:8045</span>
+      <span id="conn-status">Menghubungkan...</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  /* ═══════════════════════════════════════════
+     KONFIGURASI
+  ═══════════════════════════════════════════ */
+  const CONFIG = {
+    baseUrl: 'https://villa-launched-vehicles-gold.trycloudflare.com/v1',
+    apiKey:  'sk-1de606aad7c241bdac511958f7853b6e',
+    maxHistory: 8,
+    system:  `Kamu AI serba bisa. Jawab informatif, padat, dan natural. Bahas apa saja menyesuaikan gaya/bahasa pengguna.\nPENTING: Jawab teks biasa TANPA markdown (*, #, dsb) atau emoji.`
+  };
+
+  /* ═══════════════════════════════════════════
+     STATE
+  ═══════════════════════════════════════════ */
+  let history    = [];
+  let isLoading  = false;
+  let pendingFile = null; // { type: 'image'|'text'|'pdf', name, data, mediaType }
+
+  const messagesEl    = document.getElementById('messages');
+  const inputEl       = document.getElementById('user-input');
+  const sendBtn       = document.getElementById('send-btn');
+  const modelSelect   = document.getElementById('model-select');
+  const connStatus    = document.getElementById('conn-status');
+  const fileInput     = document.getElementById('file-input');
+  const filePreview   = document.getElementById('file-preview');
+  const previewThumb  = document.getElementById('preview-thumb');
+  const previewIcon   = document.getElementById('preview-file-icon');
+  const previewName   = document.getElementById('preview-name');
+
+  /* ═══════════════════════════════════════════
+     CONNECTION CHECK
+  ═══════════════════════════════════════════ */
+  async function checkConnection() {
+    connStatus.textContent = 'Mengecek koneksi...';
+    connStatus.className = '';
+    try {
+      const res = await fetch(`${CONFIG.baseUrl}/v1/models`, {
+        headers: { 'x-api-key': CONFIG.apiKey, 'anthropic-version': '2023-06-01' }
+      });
+      
+      if (res.ok) {
+        connStatus.textContent = 'Terhubung';
+        connStatus.className = 'ok';
+        console.log('[Antigravity] Server aktif dan terhubung.');
+      } else {
+        console.warn('[Antigravity] Server merespons dengan status:', res.status);
+        connStatus.textContent = 'Terhubung (Status: ' + res.status + ')';
+        connStatus.className = 'ok'; // Masih dianggap terhubung jika server merespons
+      }
+    } catch (err) {
+      console.error('[Antigravity] Server tidak ditemukan pada', CONFIG.baseUrl);
+      connStatus.textContent = 'Tidak terhubung';
+      connStatus.className = 'error';
+    }
+  }
+
+  /* ═══════════════════════════════════════════
+     FILE UPLOAD
+  ═══════════════════════════════════════════ */
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    fileInput.value = '';
+
+    const isImage = file.type.startsWith('image/');
+    const isPDF   = file.type === 'application/pdf';
+
+    if (isImage) {
+      const base64 = await readAsBase64(file);
+      pendingFile = { type: 'image', name: file.name, data: base64, mediaType: file.type };
+      previewThumb.src = `data:${file.type};base64,${base64}`;
+      previewThumb.classList.add('visible');
+      previewIcon.classList.remove('visible');
+    } else if (isPDF) {
+      const base64 = await readAsBase64(file);
+      pendingFile = { type: 'pdf', name: file.name, data: base64, mediaType: 'application/pdf' };
+      previewThumb.classList.remove('visible');
+      previewIcon.classList.add('visible');
+    } else {
+      const text = await readAsText(file);
+      pendingFile = { type: 'text', name: file.name, data: text, mediaType: file.type };
+      previewThumb.classList.remove('visible');
+      previewIcon.classList.add('visible');
+    }
+
+    previewName.textContent = file.name;
+    filePreview.classList.add('visible');
+    inputEl.focus();
+  });
+
+  function readAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function readAsText(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  }
+
+  function removePendingFile() {
+    pendingFile = null;
+    filePreview.classList.remove('visible');
+    previewThumb.classList.remove('visible');
+    previewIcon.classList.remove('visible');
+    previewThumb.src = '';
+    previewName.textContent = '';
+  }
+
+  /* ═══════════════════════════════════════════
+     TEXTAREA AUTO-RESIZE
+  ═══════════════════════════════════════════ */
+  inputEl.addEventListener('input', () => {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  });
+
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  /* ═══════════════════════════════════════════
+     HELPERS
+  ═══════════════════════════════════════════ */
+  function useSuggestion(el) {
+    inputEl.value = el.textContent;
+    inputEl.dispatchEvent(new Event('input'));
+    sendMessage();
+  }
+
+  function hideEmptyState() {
+    const es = document.getElementById('empty-state');
+    if (es) es.style.display = 'none';
+  }
+
+  function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="#3B6D11" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg><span style="color:#3B6D11">Tersalin</span>`;
+      setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+    }).catch(err => {
+      console.error('Gagal menyalin:', err);
+    });
+  }
+
+  function botAvatarSVG() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+    </svg>`;
+  }
+
+  function addMessage(role, text, isError = false, imageDataUrl = null, fileName = null, thinking = null) {
+    hideEmptyState();
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (role === 'user' ? 'user' : 'bot');
+
+    if (role === 'assistant') {
+      const av = document.createElement('div');
+      av.className = 'msg-avatar';
+      av.innerHTML = botAvatarSVG();
+      row.appendChild(av);
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = isError ? 'bubble error' : 'bubble ' + role;
+
+    // Jika ada reasoning/thinking
+    if (thinking) {
+      const thinkDiv = document.createElement('div');
+      thinkDiv.className = 'bubble-thinking';
+      thinkDiv.textContent = '💡 ' + thinking;
+      bubble.appendChild(thinkDiv);
+    }
+
+    if (imageDataUrl) {
+      const img = document.createElement('img');
+      img.src = imageDataUrl;
+      img.className = 'bubble-img';
+      bubble.appendChild(img);
+    }
+
+    if (fileName && !imageDataUrl) {
+      const fileTag = document.createElement('div');
+      fileTag.style.cssText = 'font-size:11px;opacity:0.7;margin-bottom:4px;';
+      fileTag.textContent = '📎 ' + fileName;
+      bubble.appendChild(fileTag);
+    }
+
+    if (text) {
+      const textNode = document.createTextNode(text);
+      bubble.appendChild(textNode);
+
+      // Tambahkan tombol salin jika ini adalah jawaban asisten (bukan error)
+      if (role === 'assistant' && !isError) {
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg> Salin`;
+        copyBtn.onclick = () => copyText(text, copyBtn);
+        
+        // Membungkus teks dan tombol salin
+        const breakNode = document.createElement('br');
+        bubble.appendChild(breakNode);
+        bubble.appendChild(copyBtn);
+      }
+    }
+
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return bubble;
+  }
+
+  function addTyping() {
+    hideEmptyState();
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+    row.id = 'typing-row';
+    const av = document.createElement('div');
+    av.className = 'msg-avatar';
+    av.innerHTML = botAvatarSVG();
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble bot typing';
+    bubble.innerHTML = '<span></span><span></span><span></span>';
+    row.appendChild(av);
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typing-row');
+    if (el) el.remove();
+  }
+
+  /* ═══════════════════════════════════════════
+     CLEAR CHAT
+  ═══════════════════════════════════════════ */
+  function clearChat() {
+    history = [];
+    removePendingFile();
+    messagesEl.innerHTML = `
+      <div id="empty-state" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:40px 20px;">
+        <div class="es-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+          </svg>
+        </div>
+        <h2>Chat dibersihkan</h2>
+        <p>Mulai percakapan baru kapan saja.</p>
+        <div class="chips">
+          <button class="chip" onclick="useSuggestion(this)">Jelaskan konsep AI</button>
+          <button class="chip" onclick="useSuggestion(this)">Tulis email formal</button>
+          <button class="chip" onclick="useSuggestion(this)">Bantu debug kode</button>
+          <button class="chip" onclick="useSuggestion(this)">Terjemahkan teks</button>
+        </div>
+      </div>`;
+  }
+
+  /* ═══════════════════════════════════════════
+     BUILD USER CONTENT (untuk API)
+  ═══════════════════════════════════════════ */
+  function buildUserContent(text) {
+    if (!pendingFile) return text;
+
+    const contentArr = [];
+
+    if (pendingFile.type === 'image') {
+      contentArr.push({
+        type: 'image',
+        source: { type: 'base64', media_type: pendingFile.mediaType, data: pendingFile.data }
+      });
+    } else if (pendingFile.type === 'pdf') {
+      contentArr.push({
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: pendingFile.data }
+      });
+    } else {
+      contentArr.push({
+        type: 'text',
+        text: `[FILE: ${pendingFile.name}]\n${pendingFile.data}`
+      });
+    }
+
+    if (text) {
+      contentArr.push({ type: 'text', text });
+    }
+
+    return contentArr;
+  }
+
+  /* ═══════════════════════════════════════════
+     SEND MESSAGE
+  ═══════════════════════════════════════════ */
+  async function sendMessage() {
+    if (isLoading) return;
+    const text = inputEl.value.trim();
+    if (!text && !pendingFile) return;
+
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    sendBtn.disabled = true;
+    isLoading = true;
+
+    const imageDataUrl = (pendingFile?.type === 'image')
+      ? `data:${pendingFile.mediaType};base64,${pendingFile.data}`
+      : null;
+    const fileName = pendingFile?.name || null;
+
+    addMessage('user', text || null, false, imageDataUrl, fileName && !imageDataUrl ? fileName : null);
+
+    const userContent = buildUserContent(text);
+    history.push({ role: 'user', content: userContent });
+
+    removePendingFile();
+    addTyping();
+
+    // Kirim history terbatas untuk memori chat
+    const trimmedHistory = history.slice(-CONFIG.maxHistory);
+
+    try {
+      console.log('[Antigravity] Mengirim pesan ke:', modelSelect.value);
+      
+      const res = await fetch(`${CONFIG.baseUrl}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': CONFIG.apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: modelSelect.value,
+          max_tokens: 600,
+          system: CONFIG.system,
+          messages: trimmedHistory
+        })
+      });
+
+      const data = await res.json();
+      console.log('[Antigravity] Respons server:', data);
+      removeTyping();
+
+      // Cek apakah ada error dari server (baik status code != 200 maupun error di body)
+      if (!res.ok || data.type === 'error') {
+        const errMsg = data?.error?.message || data?.message || `Server error ${res.status}`;
+        alert('Gagal mengirim pesan: ' + errMsg); // Menampilkan alert popup sesuai permintaan
+        addMessage('assistant', '⚠ ERROR: ' + errMsg, true);
+        history.pop();
+        connStatus.textContent = 'Status: Error';
+        connStatus.className = 'error';
+        console.error('[Antigravity] Error detail:', data);
+        return;
+      }
+
+      // Mencari blok thinking dan teks (antisipasi model "thinking")
+      const thinkingBlock = data?.content?.find(c => c.type === 'thinking');
+      const thinkingText  = thinkingBlock?.thinking;
+
+      const textBlock = data?.content?.find(c => c.type === 'text');
+      const reply     = textBlock?.text;
+      
+      if (!reply && !thinkingText) {
+        console.warn('[Antigravity] Server tidak mengembalikan blok teks atau thinking:', data);
+        alert('Model tidak mengembalikan respons teks. Coba ganti model lain atau cek konsol.');
+        addMessage('assistant', '⚠ Respons teks tidak ditemukan. Coba ganti model lain.', true);
+        history.pop();
+        return;
+      }
+
+      // Masukkan ke history (menggunakan teks jawaban sebagai konten utama)
+      history.push({ role: 'assistant', content: reply || `(Thinking: ${thinkingText})` });
+      
+      // Tampilkan di UI dengan menyertakan blok thinking
+      addMessage('assistant', reply, false, null, null, thinkingText);
+      connStatus.textContent = 'Terhubung';
+      connStatus.className = 'ok';
+
+    } catch (err) {
+      removeTyping();
+      console.error('[Antigravity] Fetch error:', err);
+      const catchErrorMsg = 'Gagal terhubung ke Antigravity Tools. Pastikan server (antigravity start) sudah berjalan di port 8045.';
+      alert(catchErrorMsg);
+      addMessage('assistant',
+        'Gagal terhubung ke Antigravity Tools.\n\nPastikan:\n1. Server sudah berjalan (antigravity start)\n2. Port 8045 aktif\n3. Cek apakah ada firewall yang memblokir localhost',
+        true
+      );
+      history.pop();
+      connStatus.textContent = 'Tidak terhubung';
+      connStatus.className = 'error';
+    } finally {
+      sendBtn.disabled = false;
+      isLoading = false;
+      inputEl.focus();
+    }
+  }
+
+  /* ═══════════════════════════════════════════
+     INIT
+  ═══════════════════════════════════════════ */
+  checkConnection();
+  inputEl.focus();
+</script>
+</body>
+</html>
