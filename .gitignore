@@ -1,4 +1,18 @@
+# Python
+venv/
+.venv/
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.pyd
+
+# Bot Data
+data.json
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
 .DS_Store
+Thumbs.db
